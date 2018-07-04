@@ -3,11 +3,13 @@ import sys
 import time
 import re
 import sys
+import datetime
 
 class PTTTelnet(object):
     HOST = 'ptt.cc'
     USER = 'jaqqxd'
     PASSWORD = ''
+    ARTICLE_DIR = 'article/'
     content = b""
     content_big5 = "" 
     content_big5_no_c = "" # without color
@@ -107,7 +109,7 @@ class PTTTelnet(object):
             content = self.content
 
         print(content)
-        input("Press Enter to continue...")
+        #input("Press Enter to continue...")
         return content
 
     def switch_board(self, board_name):
@@ -123,8 +125,8 @@ class PTTTelnet(object):
 
 
     def is_article_bottom(self):
-
-        if "100%" in self.content_big5_no_c:
+        
+        if "100%" in self.content_big5_no_c[self.content_big5_no_c.rfind('\n') + 1:]:
             return True
 
         return False
@@ -132,39 +134,111 @@ class PTTTelnet(object):
     def console_log(self, tag, content = ""):
         print("\n\n\n\n\n\n\n\n" + str(tag) + " " + str(content))
 
-    def get_article(self):
+    def get_articles(self, ts):
+        
+        while True:
+            aid, a_ts, article = self.get_article()
+     
+            # up
+            input_key = b"\x1bOA"
+            self.user_input(input_key, 1)
 
-        self.read()
+            if a_ts < ts:
+                break
+            
+            #file_name = datetime.datetime.utcfromts(a_ts)
 
+            f = open(self.ARTICLE_DIR + aid, 'w')
+            f.write(article)
+            f.close()
+            
+
+
+    def get_article(self):        
+        
+        #self.read()
+
+        # enter article
         input_key = b"\r\n"
         self.user_input(input_key, 1)
-
         self.read()
+
+        self.user_input(b"\x0c", 1)        
+        self.read()
+
         article = self.remove_last_line(self.content_big5_no_c)
 
-        f = open('article.txt', 'w')
+        last_line = self.get_last_line(self.content_big5_no_c)
+        
+        re_search = re.search(r"([0-9]+)~([0-9]+)", last_line)
+
+        previous_start_line = int(re_search.group(1))
+        previous_end_line = int(re_search.group(2))
+
+        #f = open('article.txt', 'w')
         while not self.is_article_bottom():
             input_key = b"\x1bOC"
             self.user_input(input_key, 1)
-            
             self.read()            
+
+            self.user_input(b"\x0c", 1)
+            self.read()            
+
             self.check_screen()   
             self.console_log("bottom", self.is_article_bottom())
+         
+            last_line = self.get_last_line(self.content_big5_no_c)
 
-            article += self.remove_last_line(self.content_big5_no_c)
+            re_search = re.search(r"([0-9]+)~([0-9]+)", last_line)
+            print(">??????????????????", last_line)
+            self.console_log(last_line)
+            start_line = int(re_search.group(1))
+            end_line = int(re_search.group(2))
+
+            num_line_to_remove = (previous_end_line - start_line + 1)
+            start_idx = self.findnth(self.content_big5_no_c, '\n', num_line_to_remove) + 1
+            article += self.remove_last_line(self.content_big5_no_c[start_idx:])
+
+        # leave article
+        input_key = b"\x1bOD"
+        self.user_input(input_key, 1)
 
         p = re.compile("\x1b\[.*?H")
         article = p.sub('', article)
 
         p = re.compile("\x1b\[K")
         article = p.sub('', article)
+
+        p = re.compile("\x1b\[2J")
+        article = p.sub('', article)
         
         article = re.sub(r'\r', '', article)
-        f.write(article)
-        f.close()
+
+        self.console_log(article)
+
+        re_match = re.search(r"M\.([0-9]+)\.A.*?\.html", article)
+        a_ts = int(re_match.group(1))
+        aid = re_match.group(0)[0:-5]
+
+        #f.write(article)
+        #f.write(article)
+
+        #f.write(article)
+        #f.close()
+
+        return aid, a_ts, article
 
     def remove_last_line(self, s):
-        return s[:s.rfind('\n')]
+        return s[:s.rfind('\n') + 1]
+
+    def findnth(self, string, substring, n):
+        parts = string.split(substring, n)
+        if len(parts) <= n or n <= 0:
+            return -1
+        return len(string) - len(parts[-1]) - len(substring)
+
+    def get_last_line(self, content):
+        return content[content.rfind('\n') + 1:]
 
 if __name__ == "__main__":
 
@@ -173,5 +247,8 @@ if __name__ == "__main__":
     PTT.login()
     PTT.check_screen()
     PTT.switch_board("Gossiping")
-    PTT.get_article()    
+
+    ts = datetime.datetime.strptime('2018-07-04 18:28:00', '%Y-%m-%d %H:%M:%S').timestamp()
+
+    PTT.get_articles(ts)
 
