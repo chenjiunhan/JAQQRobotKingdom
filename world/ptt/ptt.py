@@ -2,124 +2,176 @@ import telnetlib
 import sys
 import time
 import re
+import sys
 
-host = 'ptt.cc'
-user = 'jaqqxd'
-password = 'a1937490'
-
-def check_screen(telnet, decode_bool = True):
-    if decode_bool:
-        content = telnet.read_very_eager().decode('big5','ignore')
-    else:
-        content = telnet.read_very_eager()
-
-    print(content)
-    input("Press Enter to continue...")
-    return content
-
-def switch_board(telnet, board_name):
-    telnet.write("s".encode('big5'))
-    telnet.write(board_name.encode('big5'))
-    telnet.write("\r\n".encode('big5'))
-    time.sleep(1)
-
-def color_filter(content, decode_bool = True):
-    p = re.compile(b'\x1b\[.*?m')
-    content = p.sub(b'', content)
-    if decode_bool:
-        content = content.decode('big5','ignore')
-
-    return content
-
-def is_article_bottom(content):
-
-    if "100%" in content:
-        return True
-
-    return False
-
-telnet = telnetlib.Telnet(host)
-time.sleep(1)
-content = telnet.read_very_eager().decode('big5','ignore')
-
-if u"請輸入代號" in content:
+class PTTTelnet(object):
+    HOST = 'ptt.cc'
+    USER = 'jaqqxd'
+    PASSWORD = ''
+    content = b""
+    content_big5 = "" 
+    content_big5_no_c = "" # without color
     
-    # user
-    telnet.write(user.encode('big5'))
-    telnet.write("\r\n".encode('big5'))
-    time.sleep(1)
-    
-    check_screen(telnet)
-
-    # password
-    telnet.write(password.encode('big5'))
-    telnet.write("\r\n".encode('big5'))    
-    time.sleep(1)
-
-    check_screen(telnet)
-
-    # continue
-    telnet.write("\r\n".encode('big5'))
-    time.sleep(1)
-    
-    content = check_screen(telnet)
-
-    # exists login
-    #telnet.write("\x0C".encode('ascii'))
-    #content = telnet.read_very_eager().decode('big5','ignore')
-
-    if u"您想刪除其他重複登入的連線嗎" in content:
-        telnet.write("n".encode('big5'))
+    def __init__(self, *args, **kwargs):
+        
+        self.USER = kwargs.get("user", self.USER)
+        self.PASSWORD = kwargs.get("password", self.PASSWORD)
+        self.telnet = telnetlib.Telnet(self.HOST)
         time.sleep(1)
-        check_screen(telnet)
+        self.console_log("連線中...")
 
-        telnet.write("\r\n".encode('big5'))
-        time.sleep(5)
-        print("??????????????")
-        content = check_screen(telnet)
+    def login(self):
 
-    # switch_board
-    switch_board(telnet, "Gossiping")
-    content = check_screen(telnet)
+        # user
+        input_key = self.to_bytes_big5(self.USER + "\r\n")
+        self.user_input(input_key, 1)
 
-    # entering picture
-    if u"發表文章" not in content:
-        telnet.write("\r\n".encode('big5'))
-        time.sleep(1)
-        content = check_screen(telnet)
+        # password
+        input_key = self.to_bytes_big5(self.PASSWORD + "\r\n")
+        self.user_input(input_key, 1)
+        
+        # continue
+        self.user_input()
+
+        self.check_screen()
+
+        while self.is_blocked():
+            pass
+
+        self.console_log("登入成功!")
+
+    def is_blocked(self):
+        self.read()
+        self.check_screen()
+        content = self.content_big5_no_c
+
+        if u"您想刪除其他重複登入的連線嗎" in content:
+            input_key = self.to_bytes_big5("N" + "\r\n")
+            self.user_input(input_key, 3)
+
+            return True
+
+        if u"您要刪除以上錯誤嘗試的記錄嗎" in content:
+            input_key = self.to_bytes_big5("Y" + "\r\n")
+            self.user_input(input_key, 3)
+
+            return True
+        
+        if u"請按任意鍵繼續" in content:
+            input_key = self.to_bytes_big5("Y")
+            self.user_input(input_key, 1)
+
+            return True
+
+        return False
+
+    def read(self):
+        self.content = self.telnet.read_very_eager()
+        self.content_big5 = self.content.decode('big5','ignore')
+        self.content_big5_no_c = self.color_filter(self.content).decode('big5','ignore')
+
+    def clean_content(self):
+        self.content = b""
+
+    def user_input(self, key = b"\r\n", timeout = 1, *args, **kwargs):
+        #timeout = kwargs.get("timeout", 0.1)
+        #key = kwargs.get("key", b"\r\n")
+
+        self.console_log("INPUT", key)
+
+        self.telnet.write(key)        
+        time.sleep(timeout)
+
+    def to_bytes_big5(self, key):
+        return bytes(key, 'big5')
+
+    '''def get_bytes(self, *args, **kwargs):
+        return self.content
+
+    def get_big5(self):
+        return self.content.decode('big5','ignore')'''
+
+    def decode_big5(self, content):
+        return content.decode('big5','ignore')
     
-    telnet.write(b"\r\n")
-    time.sleep(1)
-    content = check_screen(telnet, False)
-    content = color_filter(content)
+    def color_filter(self, content):
+        p = re.compile(b'\x1b\[.*?m')
+        content = p.sub(b'', content)
+        return content
 
-    article = content
-    while not is_article_bottom(content):        
-        telnet.write(b"\x1bOC")
-        time.sleep(1)
-        content = check_screen(telnet, False)   
-        content = color_filter(content)
-        print("bottom?", is_article_bottom(content))
-        article += content
+    def check_screen(self, *args, **kwargs):
+        decode_bool = kwargs.get("decode_bool", True)
+        if decode_bool:
+            content = self.content.decode('big5','ignore')
+        else:
+            content = self.content
+
+        print(content)
+        input("Press Enter to continue...")
+        return content
+
+    def switch_board(self, board_name):
+        
+        input_key = self.to_bytes_big5("s")
+        self.user_input(input_key, 1)
+ 
+        input_key = self.to_bytes_big5(board_name + "\r\n")
+        self.user_input(input_key, 1)
+
+        while self.is_blocked():
+            pass
 
 
-    f = open('article.txt', 'w')
-    f.write(article)
-    #telnet.write(b"\x1b[M")
-    #time.sleep(1)
+    def is_article_bottom(self):
 
-    #content = check_screen(telnet)   
-    #print(content)
+        if "100%" in self.content_big5_no_c:
+            return True
 
-    '''telnet.write("\x0C".encode('ascii'))
-    content = telnet.read_very_eager().decode('big5','ignore')
-    if u"使用者條款" in content:
-        telnet.write("\x1b[D".encode('ascii'))
-        print('user')
-        time.sleep(1)'''
+        return False
 
-    '''telnet.write("yes".encode('big5'))
-    telnet.write("\r\n".encode('big5'))
-    time.sleep(1)'''
+    def console_log(self, tag, content = ""):
+        print("\n\n\n\n\n\n\n\n" + str(tag) + " " + str(content))
 
+    def get_article(self):
+
+        self.read()
+
+        input_key = b"\r\n"
+        self.user_input(input_key, 1)
+
+        self.read()
+        article = self.remove_last_line(self.content_big5_no_c)
+
+        f = open('article.txt', 'w')
+        while not self.is_article_bottom():
+            input_key = b"\x1bOC"
+            self.user_input(input_key, 1)
+            
+            self.read()            
+            self.check_screen()   
+            self.console_log("bottom", self.is_article_bottom())
+
+            article += self.remove_last_line(self.content_big5_no_c)
+
+        p = re.compile("\x1b\[.*?H")
+        article = p.sub('', article)
+
+        p = re.compile("\x1b\[K")
+        article = p.sub('', article)
+        
+        article = re.sub(r'\r', '', article)
+        f.write(article)
+        f.close()
+
+    def remove_last_line(self, s):
+        return s[:s.rfind('\n')]
+
+if __name__ == "__main__":
+
+    PTT = PTTTelnet(password=sys.argv[1])
+
+    PTT.login()
+    PTT.check_screen()
+    PTT.switch_board("Gossiping")
+    PTT.get_article()    
 
