@@ -4,6 +4,9 @@ import os
 import re
 import os.path
 import time
+import pymongo
+from pymongo import MongoClient
+
 ARTICLE_DIR = "article/"
 ARTICLE_SPLIT_DIR = "article_split/"
 ARTICLE_TFIDF_DIR = "article_tfidf/"
@@ -16,8 +19,35 @@ def is_float(string):
     except ValueError:
         return False
 
+def article_insert_mongodb(*args, **kwargs):
+    board = kwargs.get("board", "Gossiping")
+    aid = kwargs.get("aid", "M0000000000A")
+    title = kwargs.get("title", "XD")
+    ts = kwargs.get("ts", "0000000000")
+    author = kwargs.get("author", "JAQQ")
+    content = kwargs.get("content", "AAAAAAAA")
+    push_content = kwargs.get("push_content", "XD")
+    ip = kwargs.get("ip", "111111111111")  
+    
+    client = MongoClient('mongodb://localhost:27017/')
+    db = client.JAQQ
+    collection = db.PTTArticle
+    post = {
+            board: board,
+            aid: aid,
+            title: title,
+            ts: ts,
+            author: author,
+            content: content,
+            push_content: push_content,
+            ip: ip
+           }
+
+    post_id = collection.insert_one(post).inserted_id
+    print("id", post_id)
+
+
 while True:
-    time.sleep(10)
     article_list = os.listdir(ARTICLE_DIR)
 
     files = []
@@ -70,3 +100,6 @@ while True:
             
         tfidf_f.close()
 
+        #article_insert_mongodb(board = "Gossiping")
+
+    time.sleep(10)
