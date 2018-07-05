@@ -14,9 +14,11 @@ class PTTTelnet(object):
 
     content = b""
     content_big5 = "" 
-    content_big5_no_c = "" # without color
+    content_big5_no_c = "" # without color    
 
     previous_content = b""
+
+    board = ""
     
     def __init__(self, *args, **kwargs):
         
@@ -135,6 +137,8 @@ class PTTTelnet(object):
         while self.is_blocked():
             pass
 
+        self.board = board_name
+
 
     def is_article_bottom(self):
         
@@ -159,6 +163,7 @@ class PTTTelnet(object):
                 continue
 
             if a_ts < ts:
+                print("FINISH!!!!!!!!!!!!")
                 break
             
             file_path = self.ARTICLE_DIR + aid
@@ -287,7 +292,7 @@ class PTTTelnet(object):
             
             self.read()
 
-            re_search = re.search(r"M\.([0-9]+)\.A.*?\.html", self.content_big5_no_c)
+            re_search = re.search(r"※ 文章網址: https:\/\/www.ptt.cc\/bbs\/" + self.board + r"\/M\.([0-9]+)\.A.*?\.html", self.content_big5_no_c)
 
 
         a_ts = int(re_search.group(1))
