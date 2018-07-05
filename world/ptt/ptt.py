@@ -4,15 +4,19 @@ import time
 import re
 import sys
 import datetime
-
+import os.path
 class PTTTelnet(object):
     HOST = 'ptt.cc'
     USER = 'jaqqxd'
     PASSWORD = ''
     ARTICLE_DIR = 'article/'
+    ARTICLE_BYTES_DIR = 'article_bytes/'
+
     content = b""
     content_big5 = "" 
     content_big5_no_c = "" # without color
+
+    previous_content = b""
     
     def __init__(self, *args, **kwargs):
         
@@ -35,7 +39,7 @@ class PTTTelnet(object):
         # continue
         self.user_input()
 
-        self.check_screen()
+        #self.check_screen()
 
         while self.is_blocked():
             pass
@@ -44,7 +48,7 @@ class PTTTelnet(object):
 
     def is_blocked(self):
         self.read()
-        self.check_screen()
+        #self.check_screen()
         content = self.content_big5_no_c
 
         if u"您想刪除其他重複登入的連線嗎" in content:
@@ -68,9 +72,17 @@ class PTTTelnet(object):
         return False
 
     def read(self):
+        self.telnet.read_very_eager()
+        self.user_input(b"\x0c")
+        self.check_screen()
+        self.previous_content = self.content
         self.content = self.telnet.read_very_eager()
         self.content_big5 = self.content.decode('big5','ignore')
         self.content_big5_no_c = self.color_filter(self.content).decode('big5','ignore')
+        if self.previous_content == self.content:
+            return False
+
+        return True
 
     def clean_content(self):
         self.content = b""
@@ -137,40 +149,71 @@ class PTTTelnet(object):
     def get_articles(self, ts):
         
         while True:
-            aid, a_ts, article = self.get_article()
-     
+            aid, a_ts, article, article_bytes = self.get_article()                 
+            
             # up
             input_key = b"\x1bOA"
             self.user_input(input_key)
 
+            if aid == False:
+                continue
+
             if a_ts < ts:
                 break
             
-            #file_name = datetime.datetime.utcfromts(a_ts)
+            file_path = self.ARTICLE_DIR + aid
 
-            f = open(self.ARTICLE_DIR + aid, 'w')
+            if os.path.exists(file_path):
+                continue
+
+            f = open(file_path, 'w')
             f.write(article)
             f.close()
-            
+
+            file_path = self.ARTICLE_BYTES_DIR + aid
+
+            if os.path.exists(file_path):
+                continue
+
+            f = open(file_path, 'wb')
+            f.write(article_bytes)
+            f.close()                       
 
 
     def get_article(self):        
         
-        #self.read()
-
+        self.read()
         # enter article
         input_key = b"\r\n"
         self.user_input(input_key)
-        self.read()
+        
 
-        self.user_input(b"\x0c")        
-        self.read()
+        if not self.read():
+            self.console_log("Same!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+            return False, False, False, False
 
-        article = self.remove_last_line(self.content_big5_no_c)
+        #self.user_input(b"\x0c")        
+        self.read()
 
         last_line = self.get_last_line(self.content_big5_no_c)
-        
         re_search = re.search(r"([0-9]+)~([0-9]+)", last_line)
+
+        count_fail = 0
+        while re_search == None:
+            count_fail += 1
+            if count_fail > 3:
+                return False, False, False, False
+            print("BBBBBBBBBBBBBBBB")
+            time.sleep(1)
+            
+            self.read()
+            last_line = self.get_last_line(self.content_big5_no_c)
+            
+            re_search = re.search(r"([0-9]+)~([0-9]+)", last_line)
+
+        article = self.remove_last_line(self.content_big5_no_c)
+        article_bytes = self.content
+
 
         previous_start_line = int(re_search.group(1))
         previous_end_line = int(re_search.group(2))
@@ -181,27 +224,44 @@ class PTTTelnet(object):
             self.user_input(input_key)
             self.read()            
 
-            self.user_input(b"\x0c")
-            self.read()            
+            
+            #self.read()            
 
-            self.check_screen()   
+            #self.check_screen()   
             self.console_log("bottom", self.is_article_bottom())
          
             last_line = self.get_last_line(self.content_big5_no_c)
 
             re_search = re.search(r"([0-9]+)~([0-9]+)", last_line)
-            print(">??????????????????", last_line)
-            self.console_log(last_line)
+            
+            count_fail = 0
+            while re_search == None:
+                count_fail += 1
+                if count_fail > 3:
+                    return False, False, False, False
+                print("HHHHHHHHHHHHHH")
+                time.sleep(1)
+                
+                self.read()
+                last_line = self.get_last_line(self.content_big5_no_c)
+
+                re_search = re.search(r"([0-9]+)~([0-9]+)", last_line)
+            
+            #self.check_screen()   
+
             start_line = int(re_search.group(1))
             end_line = int(re_search.group(2))
 
             num_line_to_remove = (previous_end_line - start_line + 1)
             start_idx = self.findnth(self.content_big5_no_c, '\n', num_line_to_remove) + 1
             article += self.remove_last_line(self.content_big5_no_c[start_idx:])
+            article_bytes += self.content
 
-        # leave article
-        input_key = b"\x1bOD"
-        self.user_input(input_key)
+
+            previous_start_line = start_line
+            previous_end_line = end_line
+
+        
 
         p = re.compile("\x1b\[.*?H")
         article = p.sub('', article)
@@ -214,19 +274,30 @@ class PTTTelnet(object):
         
         article = re.sub(r'\r', '', article)
 
-        self.console_log(article)
+        re_search = re.search(r"M\.([0-9]+)\.A.*?\.html", article)
+        
+        count_fail = 0
+        while re_search == None:
+            count_fail += 1
+            if count_fail > 3:
+                 return False, False, False, False
 
-        re_match = re.search(r"M\.([0-9]+)\.A.*?\.html", article)
-        a_ts = int(re_match.group(1))
-        aid = re_match.group(0)[0:-5]
+            print("CCCCCCCCCCCCCC")
+            time.sleep(1)
+            
+            self.read()
 
-        #f.write(article)
-        #f.write(article)
+            re_search = re.search(r"M\.([0-9]+)\.A.*?\.html", self.content_big5_no_c)
 
-        #f.write(article)
-        #f.close()
 
-        return aid, a_ts, article
+        a_ts = int(re_search.group(1))
+        aid = re_search.group(0)[0:-5]
+        
+        # leave article
+        input_key = b"\x1bOD"
+        self.user_input(input_key)
+
+        return aid, a_ts, article, article_bytes
 
     def remove_last_line(self, s):
         return s[:s.rfind('\n') + 1]
@@ -245,10 +316,10 @@ if __name__ == "__main__":
     PTT = PTTTelnet(password=sys.argv[1])
 
     PTT.login()
-    PTT.check_screen()
+    #PTT.check_screen()
     PTT.switch_board("Gossiping")
 
-    ts = datetime.datetime.strptime('2018-07-04 18:28:00', '%Y-%m-%d %H:%M:%S').timestamp()
+    ts = datetime.datetime.strptime('2018-06-01 18:28:00', '%Y-%m-%d %H:%M:%S').timestamp()
 
     PTT.get_articles(ts)
 
