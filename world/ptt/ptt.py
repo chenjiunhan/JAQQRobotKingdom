@@ -26,11 +26,11 @@ class PTTTelnet(object):
 
         # user
         input_key = self.to_bytes_big5(self.USER + "\r\n")
-        self.user_input(input_key, 1)
+        self.user_input(input_key)
 
         # password
         input_key = self.to_bytes_big5(self.PASSWORD + "\r\n")
-        self.user_input(input_key, 1)
+        self.user_input(input_key)
         
         # continue
         self.user_input()
@@ -49,19 +49,19 @@ class PTTTelnet(object):
 
         if u"您想刪除其他重複登入的連線嗎" in content:
             input_key = self.to_bytes_big5("N" + "\r\n")
-            self.user_input(input_key, 3)
+            self.user_input(input_key, 5)
 
             return True
 
         if u"您要刪除以上錯誤嘗試的記錄嗎" in content:
             input_key = self.to_bytes_big5("Y" + "\r\n")
-            self.user_input(input_key, 3)
+            self.user_input(input_key, 5)
 
             return True
         
         if u"請按任意鍵繼續" in content:
             input_key = self.to_bytes_big5("Y")
-            self.user_input(input_key, 1)
+            self.user_input(input_key)
 
             return True
 
@@ -115,10 +115,10 @@ class PTTTelnet(object):
     def switch_board(self, board_name):
         
         input_key = self.to_bytes_big5("s")
-        self.user_input(input_key, 1)
+        self.user_input(input_key)
  
         input_key = self.to_bytes_big5(board_name + "\r\n")
-        self.user_input(input_key, 1)
+        self.user_input(input_key)
 
         while self.is_blocked():
             pass
@@ -141,7 +141,7 @@ class PTTTelnet(object):
      
             # up
             input_key = b"\x1bOA"
-            self.user_input(input_key, 1)
+            self.user_input(input_key)
 
             if a_ts < ts:
                 break
@@ -160,10 +160,10 @@ class PTTTelnet(object):
 
         # enter article
         input_key = b"\r\n"
-        self.user_input(input_key, 1)
+        self.user_input(input_key)
         self.read()
 
-        self.user_input(b"\x0c", 1)        
+        self.user_input(b"\x0c")        
         self.read()
 
         article = self.remove_last_line(self.content_big5_no_c)
@@ -178,10 +178,10 @@ class PTTTelnet(object):
         #f = open('article.txt', 'w')
         while not self.is_article_bottom():
             input_key = b"\x1bOC"
-            self.user_input(input_key, 1)
+            self.user_input(input_key)
             self.read()            
 
-            self.user_input(b"\x0c", 1)
+            self.user_input(b"\x0c")
             self.read()            
 
             self.check_screen()   
@@ -201,7 +201,7 @@ class PTTTelnet(object):
 
         # leave article
         input_key = b"\x1bOD"
-        self.user_input(input_key, 1)
+        self.user_input(input_key)
 
         p = re.compile("\x1b\[.*?H")
         article = p.sub('', article)
