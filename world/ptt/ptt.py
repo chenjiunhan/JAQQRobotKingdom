@@ -316,15 +316,28 @@ class PTTTelnet(object):
     def get_last_line(self, content):
         return content[content.rfind('\n') + 1:]
 
+    def macro(self):
+        self.login()
+        self.switch_board("Gossiping")
+        ts = datetime.datetime.strptime('2018-06-01 18:28:00', '%Y-%m-%d %H:%M:%S').timestamp()    
+        self.get_articles(ts)
+
 if __name__ == "__main__":
-
+    
     PTT = PTTTelnet(password=sys.argv[1])
+    
+    while True:
+        try:
+            PTT.macro()
+        except Exception as e:
+            print("type error: " + str(e))
+            continue
 
-    PTT.login()
-    #PTT.check_screen()
+        break
+
+'''    PTT.login()
     PTT.switch_board("Gossiping")
+    ts = datetime.datetime.strptime('2018-06-01 18:28:00', '%Y-%m-%d %H:%M:%S').timestamp()    
+    PTT.get_articles(ts)'''
 
-    ts = datetime.datetime.strptime('2018-06-01 18:28:00', '%Y-%m-%d %H:%M:%S').timestamp()
-
-    PTT.get_articles(ts)
 
