@@ -206,9 +206,13 @@ class PTTTelnet(object):
         count_fail = 0
         while re_search == None:
             count_fail += 1
+            
             if count_fail > 3:
+                print("BBBBBBBBBBBBBBBB")
+                input_key = b"\x1bOD"
+                self.user_input(input_key)
                 return False, False, False, False
-            print("BBBBBBBBBBBBBBBB")
+
             time.sleep(1)
             
             self.read()
@@ -242,9 +246,12 @@ class PTTTelnet(object):
             count_fail = 0
             while re_search == None:
                 count_fail += 1
+
                 if count_fail > 3:
+                    print("HHHHHHHHHHHHHH")
+                    input_key = b"\x1bOD"
+                    self.user_input(input_key)
                     return False, False, False, False
-                print("HHHHHHHHHHHHHH")
                 time.sleep(1)
                 
                 self.read()
@@ -279,15 +286,19 @@ class PTTTelnet(object):
         
         article = re.sub(r'\r', '', article)
 
-        re_search = re.search(r"M\.([0-9]+)\.A.*?\.html", article)
+        re_search = re.search(r"※ 文章網址: https:\/\/www.ptt.cc\/bbs\/" + self.board + r"\/M\.([0-9]+)\.A.*?\.html", self.content_big5_no_c)
+
         
         count_fail = 0
         while re_search == None:
             count_fail += 1
-            if count_fail > 3:
-                 return False, False, False, False
 
-            print("CCCCCCCCCCCCCC")
+            if count_fail > 3:
+                print("CCCCCCCCCCCCCC")
+                input_key = b"\x1bOD"
+                self.user_input(input_key)
+                return False, False, False, False
+
             time.sleep(1)
             
             self.read()
@@ -296,7 +307,7 @@ class PTTTelnet(object):
 
 
         a_ts = int(re_search.group(1))
-        aid = re_search.group(0)[0:-5]
+        aid = re_search.group(0)[-23:-5]
         
         # leave article
         input_key = b"\x1bOD"
@@ -319,7 +330,7 @@ class PTTTelnet(object):
     def macro(self):
         self.login()
         self.switch_board("Gossiping")
-        ts = datetime.datetime.strptime('2018-06-01 18:28:00', '%Y-%m-%d %H:%M:%S').timestamp()    
+        ts = datetime.datetime.strptime('2018-06-01 18:28:00', '%Y-%m-%d %H:%M:%S').timestamp()
         self.get_articles(ts)
 
 if __name__ == "__main__":

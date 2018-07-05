@@ -1,2 +1,5 @@
 world/ptt/article/*
 world/ptt/article_bytes/*
+world/ptt/article_split/*
+world/ptt/article_tfidf/*
+*.swp
