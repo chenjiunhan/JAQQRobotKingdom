@@ -209,8 +209,8 @@ class PTTTelnet(object):
             
             if count_fail > 3:
                 print("BBBBBBBBBBBBBBBB")
-                input_key = b"\x1bOD"
-                self.user_input(input_key)
+                #input_key = b"\x1bOD"
+                #self.user_input(input_key)
                 return False, False, False, False
 
             time.sleep(1)
@@ -249,8 +249,8 @@ class PTTTelnet(object):
 
                 if count_fail > 3:
                     print("HHHHHHHHHHHHHH")
-                    input_key = b"\x1bOD"
-                    self.user_input(input_key)
+                    #input_key = b"\x1bOD"
+                    #self.user_input(input_key)
                     return False, False, False, False
                 time.sleep(1)
                 

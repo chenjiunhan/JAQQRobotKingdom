@@ -16,44 +16,70 @@ app.get('/create', function(req, res) {
 			throw err;
 		}
 		var dbo = db.db("JAQQ");
-		var myobj = { board: "Gossiping", 
-					  aid : "M123A", 
-					  title: "QQ", 
-                      ts: 1, 
-                      author: "JAQQ", 
-                      content: "", 
-                      push_content: "", 
-                      ip: "111"};
-		
-        dbo.collection("PTTArticle").insertOne(myobj, function(err, res) {
-			if(err) {
-				throw err;
-			}
-		});  		
-        
-        dbo.listCollections().toArray(function(err, collInfos) {
-            console.log(collInfos)     
+		dbo.createCollection("PTTArticle", function(err, res) {
+            if (err) throw err;
+            console.log("Collection created!");
         });
-
-        dbo.collection("PTTArticle").findOne({}, function(err, result) {
-              if (err) throw err;
-                  console.log(result);
-                        });
-
-		var cursor = dbo.collection('PTTArticle').find();
-
-		// Execute the each command, triggers for each document
-		cursor.each(function(err, item) {
-			// If the item is null then the cursor is exhausted/empty and closed
-			console.log(item)			
-            // otherwise, do something with the item
-		});
             
         db.close();
 	});
 
 	res.send("OK")
 })
+
+app.get('/drop', function(req, res) {
+    var MongoClient = require('mongodb').MongoClient;
+    var url = "mongodb://localhost:27017/";
+
+    MongoClient.connect(url, function(err, db) {
+        if (err) throw err;
+        var dbo = db.db("JAQQ");
+        dbo.collection("PTTArticle").drop(function(err, res) {
+            if (err) throw err;
+            if (res) console.log("Collection deleted");
+        });
+
+        db.close();
+    });
+
+	res.send("OK")
+})
+
+app.get('/find', function(req, res) {
+    var MongoClient = require('mongodb').MongoClient;
+	var url = "mongodb://localhost:27017/";
+	MongoClient.connect(url, {useNewUrlParser: true }, function(err, db) {
+	  	if (err) {
+			throw err;
+		}
+		var dbo = db.db("JAQQ");
+        
+        var cursor = dbo.collection('PTTArticle').find();
+
+	    var result = ""
+        // Execute the each command, triggers for each document
+        cursor.each(function(err, item) {
+            // If the item is null then the cursor is exhausted/empty and closed
+            if(typeof item == 'undefined') {
+                send(err, result)   
+            } else {
+                console.log("????????????????")
+                //console.log(JSON.stringify(item))
+                result += JSON.stringify(item)
+                //console.log(result)
+                console.log("!!!!!!!!!!!!!!")
+            }            
+            // otherwise, do something with the item
+        });
+
+        function send(err, result) {
+            res.send(result)
+        }
+
+        db.close();
+    });
+})
+
 
 app.get('*', function (req, res) {
     //console.log(req, res)
