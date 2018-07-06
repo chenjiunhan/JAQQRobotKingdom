@@ -70,8 +70,7 @@ while True:
         f = open(ARTICLE_DIR + filename, 'r')
 
         if os.path.exists(ARTICLE_TFIDF_DIR + filename):
-            pass
-            #continue        
+            continue        
 
         content = f.read()
 
