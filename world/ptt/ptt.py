@@ -31,17 +31,23 @@ class PTTTelnet(object):
     def login(self):
 
         # user
-        input_key = self.to_bytes_big5(self.USER + "\r\n")
-        self.user_input(input_key)
 
+        self.read(True)
+        if not self.check_word(u"或以 new 註冊"):
+            raise Exception("Login Error!")
+
+        input_key = self.to_bytes_big5(self.USER + "\r\n")
+        self.user_input(input_key)                
+        self.read(True)
+        if not self.check_word(u"請輸入您的密碼"):
+            raise Exception("Login Error!")
+        
         # password
         input_key = self.to_bytes_big5(self.PASSWORD + "\r\n")
-        self.user_input(input_key)
+        self.user_input(input_key)        
         
         # continue
         self.user_input()
-
-        #self.check_screen()
 
         while self.is_blocked():
             pass
@@ -50,11 +56,10 @@ class PTTTelnet(object):
 
     def is_blocked(self):
         self.read()
-        #self.check_screen()
         content = self.content_big5_no_c
 
         if u"您想刪除其他重複登入的連線嗎" in content:
-            input_key = self.to_bytes_big5("N" + "\r\n")
+            input_key = self.to_bytes_big5("n" + "\r\n")
             self.user_input(input_key, 5)
 
             return True
@@ -73,14 +78,15 @@ class PTTTelnet(object):
 
         return False
 
-    def read(self):
-        self.telnet.read_very_eager()
-        self.user_input(b"\x0c")
-        self.check_screen()
+    def read(self, login = False):
+        if not login:
+            self.telnet.read_very_eager()
+            self.user_input(b"\x0c")
         self.previous_content = self.content
         self.content = self.telnet.read_very_eager()
         self.content_big5 = self.content.decode('big5','ignore')
         self.content_big5_no_c = self.color_filter(self.content).decode('big5','ignore')
+        self.check_screen()
         if self.previous_content == self.content:
             return False
 
@@ -150,11 +156,64 @@ class PTTTelnet(object):
     def console_log(self, tag, content = ""):
         print("\n\n\n\n\n\n\n\n" + str(tag) + " " + str(content))
 
+    def check_article(self):
+        input_key = b"Q"
+        self.user_input(input_key)
+        self.read()
+        
+        re_search = re.search(r"文章網址: https:\/\/www.ptt.cc\/bbs\/" + self.board + r"\/M\.([0-9]+)\.A.*?\.html", self.content_big5_no_c)
+        
+        count_fail = 0
+        while re_search == None:
+            count_fail += 1
+
+            if count_fail > 3:
+                input_key = b"\x1bOA"
+                self.user_input(input_key)
+                return False
+
+            time.sleep(1)            
+            
+            self.read()
+
+            re_search = re.search(r"文章網址: https:\/\/www.ptt.cc\/bbs\/" + self.board + r"\/M\.([0-9]+)\.A.*?\.html", self.content_big5_no_c)
+
+        if re_search != None:
+            input_key = b"q"
+            self.user_input(input_key)
+
+        aid = re_search.group(0)[-23:-5]
+        
+        file_path = self.ARTICLE_DIR + aid
+
+        if os.path.exists(file_path):
+
+            self.console_log("文章已存在！！")
+
+            return True
+
+        return False
+
+
+        
+
+
     def get_articles(self, ts):
         
         while True:
-            aid, a_ts, article, article_bytes = self.get_article()                 
             
+            if self.check_article():
+
+                # up
+                input_key = b"\x1bOA"
+                self.user_input(input_key)
+
+                continue
+
+            aid, a_ts, article, article_bytes = self.get_article()                          
+            self.read()
+            self.check_reset([u"看板《Gossiping》", "文章選讀  (y)回應(X)推文(^X)轉錄 (=[]<>)相關主題(/?a)找標題/作者 (b)進板畫面"], self.board)
+
             # up
             input_key = b"\x1bOA"
             self.user_input(input_key)
@@ -333,12 +392,40 @@ class PTTTelnet(object):
         ts = datetime.datetime.strptime('2018-06-01 18:28:00', '%Y-%m-%d %H:%M:%S').timestamp()
         self.get_articles(ts)
 
+    def check_reset(self, keywords, board):
+        for word in keywords:
+            if not self.check_word(word):
+                self.reset(board)
+                self.console_log(word, "NOT exists!!!!!!!!")
+                return True
+            else:
+                self.console_log(word, "exists!!!!!!!!")
+        return False
+
+    def check_word(self, word):
+
+        if word in self.content_big5_no_c:            
+            return True
+
+        print(self.content_big5_no_c, "check_word:", word, "not exists!!!")
+        return False
+
+    def reset(self, board_name):
+        input_key = b"qqqqqqqqqqq"
+        self.user_input(input_key)
+        word = u"主功能表"
+        if self.check_word(word):
+            self.switch_board(board_name)
+        else:
+            raise Exception("Reset failed!")
+        
+
 if __name__ == "__main__":
     
-    PTT = PTTTelnet(password=sys.argv[1])
     
     while True:
         try:
+            PTT = PTTTelnet(password=sys.argv[1])
             PTT.macro()
         except Exception as e:
             print("type error: " + str(e))
