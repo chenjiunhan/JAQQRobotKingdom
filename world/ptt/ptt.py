@@ -205,11 +205,7 @@ class PTTTelnet(object):
     def get_articles(self, ts):
         
         while True:
-            article_exists, aid, a_ts = self.check_article()
-
-            if a_ts < ts:
-                print("FINISH!!!!!!!!!!!!")
-                break
+            article_exists, aid, a_ts = self.check_article()        
 
             if article_exists or aid == False:
 
@@ -218,6 +214,10 @@ class PTTTelnet(object):
                 self.user_input(input_key)
 
                 continue
+
+            if a_ts < ts:
+                print("FINISH!!!!!!!!!!!!")
+                break
 
             article, article_bytes = self.get_article()                          
             self.read()
