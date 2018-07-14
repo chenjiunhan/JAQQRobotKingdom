@@ -10,7 +10,7 @@ from pymongo import MongoClient
 ARTICLE_DIR = "article/"
 ARTICLE_SPLIT_DIR = "article_split/"
 ARTICLE_TFIDF_DIR = "article_tfidf/"
-
+SKIP_EXISTED_FILE = True
 
 def is_float(string):
     try:
@@ -50,6 +50,41 @@ def article_insert_mongodb(*args, **kwargs):
     post_id = collection.insert_one(post).inserted_id
     print("id", post_id)
 
+def article_upsert_mongodb(*args, **kwargs):
+    board = kwargs.get("board", "Gossiping")
+    aid = kwargs.get("aid", "M0000000000A")
+    title = kwargs.get("title", "XD")
+    ts = kwargs.get("ts", "0000000000")
+    author = kwargs.get("author", "JAQQ")
+    content = kwargs.get("content", "AAAAAAAA")
+    article_content = kwargs.get("article_content", "AAAAAAAA")
+    push_content = kwargs.get("push_content", "XD")
+    ip = kwargs.get("ip", "111111111111")
+    keyword = kwargs.get("keyword", "111111111111")
+
+    client = MongoClient('mongodb://localhost:27017/')
+    db = client.JAQQ
+    collection = db.PTTArticle
+    post = {
+            "board": board,
+            "aid": aid,
+            "title": title,
+            "ts": ts,
+            "author": author,
+            "content": content,
+            "article_content": article_content,
+            "push_content": push_content,
+            "ip": ip,
+            "keyword": keyword
+           }
+
+    update_target = {"aid": aid}
+
+    result = collection.update(update_target, post, upsert = True)
+
+    print("result", result)
+
+
 def findnth(string, substring, n):
     parts = string.split(substring, n)
     if len(parts) < n or n <= 0:
@@ -69,8 +104,9 @@ while True:
     for filename in files:
         f = open(ARTICLE_DIR + filename, 'r')
 
-        if os.path.exists(ARTICLE_TFIDF_DIR + filename):
-            continue        
+        if SKIP_EXISTED_FILE:
+            if os.path.exists(ARTICLE_TFIDF_DIR + filename):
+                continue        
 
         content = f.read()
 
@@ -138,19 +174,17 @@ while True:
             
         tfidf_f.close()
     
-        
-
         board = "Gossiping"
         aid = aid
         title = title
-        ts = ts
+        ts = int(ts)
         author = author
         content = content
         article_content = article_content
         push_content = push_content
         ip = ip
 
-        article_insert_mongodb( 
+        article_upsert_mongodb( 
                                 board = board,
                                 aid = aid,
                                 title = title,

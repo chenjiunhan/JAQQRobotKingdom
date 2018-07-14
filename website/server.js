@@ -1,7 +1,10 @@
+VIEWS_DIR = "pages/"
+
 var express = require('express');
 var app = express();
- 
 var fs = require('fs');
+
+app.set('view engine', 'ejs');
 
 app.get('/', function (req, res) {
     res.send('Hello');
@@ -54,30 +57,33 @@ app.get('/find', function(req, res) {
 		}
 		var dbo = db.db("JAQQ");
         
+        //var cursor = dbo.collection('PTTArticle').find({$where: "this.ts > 1531572207"});
         var cursor = dbo.collection('PTTArticle').find();
-
+        
 	    var result = ""
-        // Execute the each command, triggers for each document
-        cursor.each(function(err, item) {
-            // If the item is null then the cursor is exhausted/empty and closed
-            if(typeof item == 'undefined') {
-                send(err, result)   
-            } else {
-                console.log("????????????????")
-                //console.log(JSON.stringify(item))
-                result += JSON.stringify(item)
-                //console.log(result)
-                console.log("!!!!!!!!!!!!!!")
-            }            
-            // otherwise, do something with the item
-        });
+        //Execute the each command, triggers for each document
+        cursor.toArray(function(err, items) {
+            result = JSON.stringify(items)
+            db.close()
+            send(result)
+        })
 
-        function send(err, result) {
+        function send(result) {
             res.send(result)
         }
-
-        db.close();
     });
+})
+
+app.get('/index', function (req, res) {
+
+    view_path = VIEWS_DIR + "index.ejs"
+
+    var data = {
+        title: 'Index'
+    }
+
+    res.render(view_path, data)
+
 })
 
 
@@ -99,3 +105,4 @@ var server = app.listen(8080, function () {
     console.log("%s %s", host, port)
                
 })
+

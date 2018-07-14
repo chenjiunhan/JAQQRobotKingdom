@@ -206,12 +206,16 @@ class PTTTelnet(object):
         
         while True:
             article_exists, aid, a_ts = self.check_article()        
+            
+            self.read()
+            self.check_reset([u"看板《Gossiping》", "文章選讀  (y)回應(X)推文(^X)轉錄 (=[]<>)相關主題(/?a)找標題/作者 (b)進板畫面"], self.board)
 
             if article_exists or aid == False:
 
                 # up
                 input_key = b"\x1bOA"
                 self.user_input(input_key)
+
 
                 continue
 
