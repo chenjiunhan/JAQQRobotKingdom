@@ -11,6 +11,7 @@ class PTTTelnet(object):
     PASSWORD = ''
     ARTICLE_DIR = 'article/'
     ARTICLE_BYTES_DIR = 'article_bytes/'
+    TIMEOUT = 0.5
 
     content = b""
     content_big5 = "" 
@@ -25,7 +26,7 @@ class PTTTelnet(object):
         self.USER = kwargs.get("user", self.USER)
         self.PASSWORD = kwargs.get("password", self.PASSWORD)
         self.telnet = telnetlib.Telnet(self.HOST)
-        time.sleep(1)
+        time.sleep(self.TIMEOUT)
         self.console_log("連線中...")
 
     def login(self):
@@ -95,7 +96,9 @@ class PTTTelnet(object):
     def clean_content(self):
         self.content = b""
 
-    def user_input(self, key = b"\r\n", timeout = 1, *args, **kwargs):
+    def user_input(self, key = b"\r\n", timeout = 0, *args, **kwargs):
+        if timeout == 0:
+            timeout = self.TIMEOUT
         #timeout = kwargs.get("timeout", 0.1)
         #key = kwargs.get("key", b"\r\n")
 
@@ -170,9 +173,9 @@ class PTTTelnet(object):
             if count_fail > 3:
                 input_key = b"\x1bOA"
                 self.user_input(input_key)
-                return False
+                return False, False, False
 
-            time.sleep(1)            
+            time.sleep(self.TIMEOUT)
             
             self.read()
 
@@ -183,16 +186,17 @@ class PTTTelnet(object):
             self.user_input(input_key)
 
         aid = re_search.group(0)[-23:-5]
-        
+        a_ts = int(re_search.group(1))
+
         file_path = self.ARTICLE_DIR + aid
 
         if os.path.exists(file_path):
 
             self.console_log("文章已存在！！")
 
-            return True
+            return True, aid, a_ts
 
-        return False
+        return False, aid, a_ts
 
 
         
@@ -201,8 +205,13 @@ class PTTTelnet(object):
     def get_articles(self, ts):
         
         while True:
-            
-            if self.check_article():
+            article_exists, aid, a_ts = self.check_article()
+
+            if a_ts < ts:
+                print("FINISH!!!!!!!!!!!!")
+                break
+
+            if article_exists or aid == False:
 
                 # up
                 input_key = b"\x1bOA"
@@ -210,7 +219,7 @@ class PTTTelnet(object):
 
                 continue
 
-            aid, a_ts, article, article_bytes = self.get_article()                          
+            article, article_bytes = self.get_article()                          
             self.read()
             self.check_reset([u"看板《Gossiping》", "文章選讀  (y)回應(X)推文(^X)轉錄 (=[]<>)相關主題(/?a)找標題/作者 (b)進板畫面"], self.board)
 
@@ -218,13 +227,9 @@ class PTTTelnet(object):
             input_key = b"\x1bOA"
             self.user_input(input_key)
 
-            if aid == False:
-                continue
+            #if aid == False:
+            #    continue
 
-            if a_ts < ts:
-                print("FINISH!!!!!!!!!!!!")
-                break
-            
             file_path = self.ARTICLE_DIR + aid
 
             if os.path.exists(file_path):
@@ -251,10 +256,9 @@ class PTTTelnet(object):
         input_key = b"\r\n"
         self.user_input(input_key)
         
-
         if not self.read():
             self.console_log("Same!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
-            return False, False, False, False
+            return False, False
 
         #self.user_input(b"\x0c")        
         self.read()
@@ -270,9 +274,9 @@ class PTTTelnet(object):
                 print("BBBBBBBBBBBBBBBB")
                 #input_key = b"\x1bOD"
                 #self.user_input(input_key)
-                return False, False, False, False
+                return False, False
 
-            time.sleep(1)
+            time.sleep(self.TIMEOUT)
             
             self.read()
             last_line = self.get_last_line(self.content_big5_no_c)
@@ -310,8 +314,8 @@ class PTTTelnet(object):
                     print("HHHHHHHHHHHHHH")
                     #input_key = b"\x1bOD"
                     #self.user_input(input_key)
-                    return False, False, False, False
-                time.sleep(1)
+                    return False, False
+                time.sleep(self.TIMEOUT)
                 
                 self.read()
                 last_line = self.get_last_line(self.content_big5_no_c)
@@ -345,7 +349,7 @@ class PTTTelnet(object):
         
         article = re.sub(r'\r', '', article)
 
-        re_search = re.search(r"※ 文章網址: https:\/\/www.ptt.cc\/bbs\/" + self.board + r"\/M\.([0-9]+)\.A.*?\.html", self.content_big5_no_c)
+        '''re_search = re.search(r"※ 文章網址: https:\/\/www.ptt.cc\/bbs\/" + self.board + r"\/M\.([0-9]+)\.A.*?\.html", article)
 
         
         count_fail = 0
@@ -353,26 +357,24 @@ class PTTTelnet(object):
             count_fail += 1
 
             if count_fail > 3:
+                print(article)
                 print("CCCCCCCCCCCCCC")
                 input_key = b"\x1bOD"
                 self.user_input(input_key)
-                return False, False, False, False
+                return False, False
 
-            time.sleep(1)
+            time.sleep(self.TIMEOUT)
             
             self.read()
 
-            re_search = re.search(r"※ 文章網址: https:\/\/www.ptt.cc\/bbs\/" + self.board + r"\/M\.([0-9]+)\.A.*?\.html", self.content_big5_no_c)
+            re_search = re.search(r"※ 文章網址: https:\/\/www.ptt.cc\/bbs\/" + self.board + r"\/M\.([0-9]+)\.A.*?\.html", article)
+        '''
 
-
-        a_ts = int(re_search.group(1))
-        aid = re_search.group(0)[-23:-5]
-        
         # leave article
         input_key = b"\x1bOD"
         self.user_input(input_key)
 
-        return aid, a_ts, article, article_bytes
+        return article, article_bytes
 
     def remove_last_line(self, s):
         return s[:s.rfind('\n') + 1]
