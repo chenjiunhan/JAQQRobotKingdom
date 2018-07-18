@@ -3,19 +3,22 @@
 <html>
 
 <head>
-<title><%= title %></title>
 <% include head.ejs %>
+<title><%= title %></title>
 <link href="/views/css/pinterest.css" rel="stylesheet">
 </head>
 
 <body>
 
 <div class="container">
-	<h1>Pinterest like grid with bootstrap</h1>
+	<h1><%= website_name %></h1>
 	<div class="row">
-		<div class="item well">
-			<p>Lorem ipsum dolor sit amet, consectetur adipisicing elit. Aliquid laudantium veritatis expedita optio aperiam modi, odit eius, enim a alias itaque voluptate officiis natus placeat nostrum quasi nobis et iure.</p>
-		</div>
+        <a href="person?name=柯文哲">
+            <div class="item well">
+                <img src="/views/image/kerker.jpg" class="item">
+                <p>柯文哲</p>
+            </div>
+        </a>
 		<div class="item well">
 			<p>Lorem ipsum dolor sit amet, consectetur adipisicing elit. Similique reiciendis ipsum laborum ab enim perspiciatis nesciunt earum fugiat veniam, asperiores cumque fugit maiores quisquam ullam necessitatibus id rem illum. Sit.</p>
 		</div>

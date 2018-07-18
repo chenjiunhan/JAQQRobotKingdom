@@ -79,7 +79,21 @@ app.get('/index', function (req, res) {
     view_path = VIEWS_DIR + "index.ejs"
 
     var data = {
-        title: 'Index'
+        title: 'Index',
+        website_name: '丞相，起風了'
+    }
+
+    res.render(view_path, data)
+
+})
+
+app.get('/person', function (req, res) {
+
+    view_path = VIEWS_DIR + "person.ejs"
+
+    var data = {
+        title: 'Index',
+        website_name: '丞相，起風了'
     }
 
     res.render(view_path, data)
